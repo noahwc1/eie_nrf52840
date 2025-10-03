@@ -2,7 +2,7 @@
 *main.c
 */
 
-#include <zephyr/kernal.h>
+#include <zephyr/kernel.h>
 #include <zephyr/drivers/gpio.h>
 
 int main(void) {
