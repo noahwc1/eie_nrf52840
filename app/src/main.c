@@ -54,11 +54,19 @@ int main(void) {
     }
 
     while (1){
+      
         gpio_pin_toggle_dt(&led0);
+        k_msleep(300);
+        gpio_pin_configure_dt(&led0, GPIO_OUTPUT_INACTIVE);
         gpio_pin_toggle_dt(&led1);
-        gpio_pin_toggle_dt(&led2);
+        k_msleep(300);
+        gpio_pin_configure_dt(&led1, GPIO_OUTPUT_INACTIVE);
         gpio_pin_toggle_dt(&led3);
-        k_msleep(1000);
+        k_msleep(300);
+        gpio_pin_configure_dt(&led3, GPIO_OUTPUT_INACTIVE);
+        gpio_pin_toggle_dt(&led2);
+        k_msleep(300);
+        gpio_pin_configure_dt(&led2, GPIO_OUTPUT_INACTIVE);
     }
     return 0;
 
