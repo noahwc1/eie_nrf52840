@@ -138,7 +138,7 @@ Create a Finite State Machine (FSM) based program that follows all the following
 
 - At any point, the user should be able to hold down BTN0 and BTN1 for 3 seconds to go to a special "standby" state
   where all four LEDs gently pulse between fully off and fully on using PWM to vary brightness. The user
-  should be able to click BTN2 or BTN3 to exit this state and go back to whatever state they were just in.
+  should be able to click any button to exit this state and go back to whatever state they were just in.
 
 ### Instructions
 
