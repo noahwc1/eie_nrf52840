@@ -56,7 +56,7 @@ static const struct smf_state states[] = {
 static state_object_t state_object;
 
 void state_machine_init() {
-    led_state_object.count = 0;
+    state_object.count = 0;
     smf_set_initial(SMF_CTX(&state_object), &states[START_STATE]);
     
  }
@@ -80,6 +80,7 @@ struct led_state_object {
 
  static void start_state(void* o);
  static enum smf_state_result start_state_run(void* o){
+    state_object_t.count = 0;
     while(1){
         if (BTN_isPressed(BTN0) ) {
             ptr_btn_presses[0] = 0;
@@ -113,6 +114,7 @@ struct led_state_object {
 
  static void enter_state(void* o);
  static enum smf_state_result enter_state_run(void* o) {
+    state_object_t.count = 1;
     int btn_total_presses = 1;
     while(1) {
         if (BTN_isPressed(BTN0) ) {
@@ -173,6 +175,7 @@ struct led_state_object {
 
 static void save_state(void* o);
 static enum smf_state_result save_state_run(void* o){
+    state_object_t.count = 2;
     while(1){
         if (BTN_isPressed(BTN2)){
             printk("button 2 pressed, string deleted\n");
@@ -202,7 +205,8 @@ static enum smf_state_result save_state_run(void* o){
 }
 
 static void standby_state(void* o);
-static enum smf_state_result standby_state_run(void *last_state){
+static enum smf_state_result standby_state_run(void* o){
+    state_object_t.count = 3;
     int brightness = 0;
     while(1) {
         brightness = (brightness % 2) ? (brightness == 100) ? (brightness == 99 : (brightness + 10));
@@ -212,13 +216,13 @@ static enum smf_state_result standby_state_run(void *last_state){
         LED_pwm(LED2, brightness);
         LED_pwm(LED3, brightness);
         if (BTN_isPressed(BTN0)||BTN_isPressed(BTN1)||BTN_isPressed(BTN2)||BTN_isPressed(BTN3))
-            smf_set_state(SMF_CTX(&state_object), &states[last_state]);
+            smf_set_state(SMF_CTX(&state_object), &states[state_object.count]);
             return SMF_EVENT_HANDLED;
         k_msleep(SLEEP_TIME_MS);
     }
 }
 
-static enum smf_state_result 
+
 
 //  static void led_off_state_entry(void*o) {
 //     LED_set(LED0, LED_OFF);
