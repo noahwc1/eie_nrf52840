@@ -28,7 +28,7 @@ int main(void) {
 
   while(1) {
     int ret = state_machine_run();
-    if (ret >0) {
+    if (ret > 0) {
       return 0;
     }
 
