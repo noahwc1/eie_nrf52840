@@ -3,6 +3,7 @@
  */
 
 #include <zephyr/smf.h>
+#include <stdio.h>
 
 #include "LED.h"
 #include "my_state_machine.h"
@@ -64,46 +65,74 @@ void state_machine_init() {
    return smf_run_state(SMF_CTX(&state_object));
  }
 
+int btn_presses[8] = {0,0,0,0,0,0,0,0};
+int saved string = {};
+int *ptr_btn_presses = &btn_presses;
+
  /*
  State Functions
  */
 
+
+ static void start_state(void* o);
+ static enum smf_state_result start_state_run(void* o){
+    while(1){
+        if (BTN_isPressed(BTN0) ) {
+            ptr_btn_presses[0] = 0;
+            printk("button 0 is pressed, set bit 0");
+            LED_set(LED0, LED_ON);
+            BTN_clearPress(BTN0);
+            smf_set_state(SMF_CTX(&state_object), &states[ENTER_STATE]);
+            return SMF_EVENT_HANDLED;
+        }
+        if (BTN_isPressed(BTN1) ) {
+            ptr_btn_presses[0] = 1;
+            LED_set(LED1, LED_ON);
+            printk("button 1 is pressed, set bit 1");
+            BTN_clearPress(BTN1);
+            smf_set_state(SMF_CTX(&state_object), &states[ENTER_STATE]);
+            return SMF_EVENT_HANDLED;
+        }
+    }
+ }
  static void enter_state(void* o){
-    btn_presses[8] = {0,0,0,0,0,0,0,0};
  }
 
- static enum smf_state_result  enter_state_run(void* o) {
-    int btn_total_presses = 0;
+ static enum smf_state_result enter_state_run(void* o) {
+    int btn_total_presses = 1;
     while(1) {
         if (BTN_isPressed(BTN0) ) {
-            btn_presses[btn_total_presses] = 0;
+            ptr_btn_presses[btn_total_presses] = 0;
             printk("button 0 is pressed, set bit 0");
             LED_set(LED0, LED_ON);
             BTN_clearPress(BTN0);
             btn_presses++;
         }
         if (BTN_isPressed(BTN1) ) {
-            btn_presses[btn_total_presses] = 1;
+            ptr_btn_presses[btn_total_presses] = 1;
             LED_set(LED1, LED_ON);
             printk("button 1 is pressed, set bit 1");
             BTN_clearPress(BTN1);
             btn_presses++;
         }
         if (BTN_isPressed(BTN2)){
-            btn_presses[8] = {0,0,0,0,0,0,0,0};
+            ptr_btn_presses[8] = {0,0,0,0,0,0,0,0};
             LED_set(LED2, LED_ON);
             printk("button 2 is pressed, reset the bits");
             BTN_clearPress(BTN2);
+            smf_set_state(SMF_CTX(&state_object), &states[START_STATE]);
+            return SMF_EVENT_HANDLED;
         }
         if (BTN_isPressed(BTN3)){
-            printk("button 3 is pressed, entering save state")
-            return smf_state_exit;
+            printk("button 3 is pressed, entering save state");
+            smf_set_state(SMF_CTX(&state_object), &states[SAVE_STATE]);
+            return SMF_EVENT_HANDLED;
         }
         
         if (btn_total_presses > 7) {
-            printk("Total button presses reached")
+            printk("Total button presses reached");
             smf_set_state(SMF_CTX(&state_object), &states[SAVE_STATE]);      
-            return SMF_STATE_EXIT;
+            return SMF_EVENT_HANDLED;
         }
         k_msleep(SLEEP_TIME_MS);
         LED_set(LED0, LED_OFF);
@@ -114,14 +143,31 @@ void state_machine_init() {
     return SMF_EVENT_HANDLED;
  }
 
-static void standby_state(void* -)
+static void save_state(void* o);
+static enum smf_state_result save_state_run(void* o){
+    while(1){
+        if (BTN_isPressed(BTN2)){
+            printk("button 2 pressed, string deleted\n");
+            smf_set_state(SMF_CTX(&state_object), &states[START_STATE]);
+    
+        }
+        if (BTN_isPressed(BTN3)){
+            printk("button 3 pressed, sending string to serial monitor\n")
+            int len = sizeof(string) / sizeof(string[0])
+            for (int i = 0; i < len; i++)
+                printk("%c", binaryToDecimal(string[i]));
+        }
+    }
+}
+
+static void standby_state(void* o);
 static enum smf_state_result standby_state_run(void*o){
     int brightness = 0;
     while(1) {
         brightness = (brightness % 2) ? (brightness == 100) ? (brightness == 99 : (brightness + 10));
         brightness = (brightness % 2) ? : ((brightness == 9) ? brightness == 0 : (brightness - 10));
         if (BTN_isPressed(BTN0)||BTN_isPressed(BTN1)||BTN_isPressed(BTN2)||BTN_isPressed(BTN3))
-            return SMF_STATE_EXIT;
+            return SMF_EVENT_HANDLED;
         k_msleep(SLEEP_TIME_MS);
     }
 }
