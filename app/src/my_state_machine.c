@@ -82,11 +82,13 @@ struct led_state_object {
  */
 
 
- static void start_state(void* o){}
+ static void start_state(void* o){
+    LED_set(LED0, LED_ON);
+ }
  static enum smf_state_result start_state_run(void* o){
     state_object.count = 0;
     while(1){
-        if (BTN_is_pressed(BTN0) ) {
+        if (BTN_check_clear_pressed(BTN0) ) {
             ptr_btn_presses[0] = 0;
             printk("button 0 is pressed, set bit 0");
             LED_set(LED0, LED_ON);
@@ -94,7 +96,7 @@ struct led_state_object {
             smf_set_state(SMF_CTX(&state_object), &states[ENTER_STATE]);
             return SMF_EVENT_HANDLED;
         }
-        if (BTN_is_pressed(BTN1) ) {
+        if (BTN_check_clear_pressed(BTN1) ) {
             ptr_btn_presses[0] = 1;
             LED_set(LED1, LED_ON);
             printk("button 1 is pressed, set bit 1");
@@ -103,7 +105,7 @@ struct led_state_object {
             return SMF_EVENT_HANDLED;
         }
 
-        if (BTN_is_pressed(BTN0) && BTN_is_pressed(BTN1)) {
+        if (BTN_check_clear_pressed(BTN0) && BTN_check_clear_pressed(BTN1)) {
             led_state_object.hold_counter++;
             if (led_state_object.hold_counter >= 3000){
                 led_state_object.hold_counter = 0;
@@ -121,21 +123,21 @@ struct led_state_object {
     state_object.count = 1;
     int btn_total_presses = 1;
     while(1) {
-        if (BTN_is_pressed(BTN0) ) {
+        if (BTN_check_clear_pressed(BTN0) ) {
             ptr_btn_presses[btn_total_presses] = 0;
             printk("button 0 is pressed, set bit 0");
             LED_set(LED0, LED_ON);
             BTN_clear_pressed(BTN0);
             btn_total_presses++;
         }
-        if (BTN_is_pressed(BTN1) ) {
+        if (BTN_check_clear_pressed(BTN1) ) {
             ptr_btn_presses[btn_total_presses] = 1;
             LED_set(LED1, LED_ON);
             printk("button 1 is pressed, set bit 1");
             BTN_clear_pressed(BTN1);
             btn_total_presses++;
         }
-        if (BTN_is_pressed(BTN2)){
+        if (BTN_check_clear_pressed(BTN2)){
             for (int l; l < 8; l++)
                 ptr_btn_presses[l] = 0;
             LED_set(LED2, LED_ON);
@@ -145,7 +147,7 @@ struct led_state_object {
             smf_set_state(SMF_CTX(&state_object), &states[START_STATE]);
             return SMF_EVENT_HANDLED;
         }
-        if (BTN_is_pressed(BTN3)){
+        if (BTN_check_clear_pressed(BTN3)){
             printk("button 3 is pressed, entering save state");
             smf_set_state(SMF_CTX(&state_object), &states[SAVE_STATE]);
             return SMF_EVENT_HANDLED;
@@ -157,7 +159,7 @@ struct led_state_object {
             return SMF_EVENT_HANDLED;
         }
 
-        if (BTN_is_pressed(BTN0) && BTN_is_pressed(BTN1)) {
+        if (BTN_check_clear_pressed(BTN0) && BTN_check_clear_pressed(BTN1)) {
             led_state_object.hold_counter++;
             if (led_state_object.hold_counter >= 3000){
                 led_state_object.hold_counter = 0;
@@ -187,14 +189,14 @@ static void save_state(void* o){
 static enum smf_state_result save_state_run(void* o){
     state_object.count = 2;
     while(1){
-        if (BTN_is_pressed(BTN2)){
+        if (BTN_check_clear_pressed(BTN2)){
             printk("button 2 pressed, string deleted\n");
             saved_number--;
             smf_set_state(SMF_CTX(&state_object), &states[START_STATE]);
             return SMF_EVENT_HANDLED;
     
         }
-        if (BTN_is_pressed(BTN3)){
+        if (BTN_check_clear_pressed(BTN3)){
             printk("button 3 pressed, sending string to serial monitor\n");
             int len = sizeof(saved_string) / sizeof(saved_string[0]);
     
@@ -207,7 +209,7 @@ static enum smf_state_result save_state_run(void* o){
             printk("\n");
         }
         
-        if (BTN_is_pressed(BTN0) && BTN_is_pressed(BTN1)) {
+        if (BTN_check_clear_pressed(BTN0) && BTN_check_clear_pressed(BTN1)) {
             led_state_object.hold_counter++;
             if (led_state_object.hold_counter >= 3000){
                 led_state_object.hold_counter = 0;
@@ -232,7 +234,7 @@ static enum smf_state_result standby_state_run(void* o){
         LED_pwm(LED1, brightness);
         LED_pwm(LED2, brightness);
         LED_pwm(LED3, brightness);
-        if (BTN_is_pressed(BTN0)||BTN_is_pressed(BTN1)||BTN_is_pressed(BTN2)||BTN_is_pressed(BTN3)){
+        if (BTN_check_clear_pressed(BTN0)||BTN_check_clear_pressed(BTN1)||BTN_check_clear_pressed(BTN2)||BTN_check_clear_pressed(BTN3)){
             smf_set_state(SMF_CTX(&state_object), &states[state_object.count]);
             return SMF_EVENT_HANDLED;
         }
