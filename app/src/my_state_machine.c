@@ -70,6 +70,7 @@ void state_machine_init() {
  }
 
 int btn_presses[8] = {0,0,0,0,0,0,0,0};
+int btn_total_presses = 0;
 int saved_string[100] = {};
 int saved_number = 0;
 int *ptr_btn_presses = btn_presses;
@@ -90,12 +91,24 @@ struct led_state_object {
  static enum smf_state_result start_state_run(void* o){
     state_object.count = 0;
     state_object.current_state = START_STATE;
+     if (BTN_is_pressed(BTN0) && BTN_is_pressed(BTN1)) {
+        led_state_object.hold_counter++;
+        if (led_state_object.hold_counter >= 3000){
+            led_state_object.hold_counter = 0;
+            smf_set_state(SMF_CTX(&state_object), &states[STANDBY_STATE]);
+            return SMF_EVENT_HANDLED;
+        }
+     }
+    else
+        led_state_object.hold_counter = 0;
+
     if (BTN_check_clear_pressed(BTN0) ) {
         ptr_btn_presses[0] = 0;
         printk("button 0 is pressed, set bit 0");
         LED_set(LED0, LED_ON);
         BTN_clear_pressed(BTN0);
         smf_set_state(SMF_CTX(&state_object), &states[ENTER_STATE]);
+        btn_total_presses++;
         return SMF_EVENT_HANDLED;
     }
     if (BTN_check_clear_pressed(BTN1) ) {
@@ -104,9 +117,39 @@ struct led_state_object {
         printk("button 1 is pressed, set bit 1");
         BTN_clear_pressed(BTN1);
         smf_set_state(SMF_CTX(&state_object), &states[ENTER_STATE]);
+        btn_total_presses++;
         return SMF_EVENT_HANDLED;
     }
+    if (BTN_check_clear_pressed(BTN2)){
+        for (int l = 0; l < 100; l++)
+            saved_string[l] = 0;
+        LED_set(LED2, LED_ON);
+        printk("button 2 is pressed, reset all the bits");
+        saved_number = 0;
+        BTN_clear_pressed(BTN2);
+        smf_set_state(SMF_CTX(&state_object), &states[START_STATE]);
+        return SMF_EVENT_HANDLED;
 
+    if (BTN_check_clear_pressed(BTN3)){
+        printk("button 3 pressed, sending string to serial monitor\n");
+        int len = sizeof(saved_string) / sizeof(saved_string[0]);
+
+        for (int i = 0; i < len/8; i++){
+            int number = 0;
+            for (int j = 0; j < 8; j++)
+                number |= (saved_string[j] << j);
+            printk("%c", number);
+        }
+        printk("\n");
+    }
+    
+    return SMF_EVENT_HANDLED;
+ }
+
+ static void enter_state(void* o){}
+ static enum smf_state_result enter_state_run(void* o) {
+    state_object.count = 1;
+    state_object.current_state = ENTER_STATE;
     if (BTN_is_pressed(BTN0) && BTN_is_pressed(BTN1)) {
         led_state_object.hold_counter++;
         if (led_state_object.hold_counter >= 3000){
@@ -117,15 +160,16 @@ struct led_state_object {
     }
     else
         led_state_object.hold_counter = 0;
-    return SMF_EVENT_HANDLED;
- }
 
- static void enter_state(void* o){}
- static enum smf_state_result enter_state_run(void* o) {
-    state_object.count = 1;
-    state_object.current_state = ENTER_STATE;
-    int btn_total_presses = 1;
+    
+    if (btn_total_presses>=7){
+        printk("max string characters reached entering save state");
+        smf_set_state(SMF_CTX(&state_object), &states[SAVE_STATE]);
+        return SMF_EVENT_HANDLED;
+    }
+
     if (BTN_check_clear_pressed(BTN0) ) {
+        btn_total_presses++;
         ptr_btn_presses[btn_total_presses] = 0;
         printk("button 0 is pressed, set bit 0");
         LED_set(LED0, LED_ON);
@@ -133,6 +177,7 @@ struct led_state_object {
         btn_total_presses++;
     }
     if (BTN_check_clear_pressed(BTN1) ) {
+        btn_total_presses++;
         ptr_btn_presses[btn_total_presses] = 1;
         LED_set(LED1, LED_ON);
         printk("button 1 is pressed, set bit 1");
@@ -161,16 +206,7 @@ struct led_state_object {
         return SMF_EVENT_HANDLED;
     }
 
-    if (BTN_is_pressed(BTN0) && BTN_is_pressed(BTN1)) {
-        led_state_object.hold_counter++;
-        if (led_state_object.hold_counter >= 3000){
-            led_state_object.hold_counter = 0;
-            smf_set_state(SMF_CTX(&state_object), &states[STANDBY_STATE]);
-            return SMF_EVENT_HANDLED;
-        }
-    }
-    else
-        led_state_object.hold_counter = 0;
+    
 
     LED_set(LED3, LED_ON);
     k_msleep(0.5*SLEEP_TIME_MS);
@@ -198,18 +234,7 @@ static enum smf_state_result save_state_run(void* o){
         return SMF_EVENT_HANDLED;
 
     }
-    if (BTN_check_clear_pressed(BTN3)){
-        printk("button 3 pressed, sending string to serial monitor\n");
-        int len = sizeof(saved_string) / sizeof(saved_string[0]);
-
-        for (int i = 0; i < len/8; i++){
-            int number = 0;
-            for (int j = 0; j < 8; j++)
-                number |= (saved_string[j] << j);
-            printk("%c", number);
-        }
-        printk("\n");
-    }
+    
     
     if (BTN_is_pressed(BTN0) && BTN_is_pressed(BTN1)) {
         led_state_object.hold_counter++;
