@@ -19,6 +19,7 @@
 #include <zephyr/settings/settings.h>
 #include <zephyr/sys/printk.h>
 
+#include "LED.h"
 /* MACROS --------------------------------------------------------------------------------------- */
 
 #define BLE_CUSTOM_SERVICE_UUID \
@@ -84,7 +85,8 @@ static ssize_t ble_custom_service_read(struct bt_conn* conn, const struct bt_gat
   // Send the data that is stored in the characteristic ("EiE" by default, can change if written to)
   // by fetching it directly from the characteristic object
   const char* data_to_send_to_connected_device = attr->user_data;
-
+ 
+  printk("service read function called\n");
   return bt_gatt_attr_read(conn, attr, buf, len, offset, data_to_send_to_connected_device,
                            strlen(data_to_send_to_connected_device));
 }
@@ -93,21 +95,34 @@ static ssize_t ble_custom_service_write(struct bt_conn* conn, const struct bt_ga
                                         const void* buf, uint16_t len, uint16_t offset,
                                         uint8_t flags) {
   uint8_t* value = attr->user_data;
-
+                                
   if (offset + len > BLE_CUSTOM_CHARACTERISTIC_MAX_DATA_LENGTH) {
     printk("[BLE] ble_custom_service_write: Bad offset %d\n", offset + len);
     return BT_GATT_ERR(BT_ATT_ERR_INVALID_OFFSET);
   }
+  printk("service write function called\n");
 
   memcpy(value + offset, buf, len);
   value[offset + len] = 0;
 
   printk("[BLE] ble_custom_service_write (%d, %d):", offset, len);
+  int test_case = 0;
   for (uint16_t i = 0; i < len; i++) {
     printk("%s %02X '%c'", i == 0 ? "" : ",", value[offset + i], value[offset + i]);
+    test_case += value[offset + i];
   }
-  printk("\n");
+  printk("%d\n", test_case);
 
+   if (test_case == 402){
+      printk("turning LED ON");
+      LED_toggle(LED1);
+  }
+  if (test_case == 464){
+      printk("turning LED ON");
+      LED_set(LED1, LED_OFF);
+  }
+
+  printk("\n");
   return len;
 }
 
