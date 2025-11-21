@@ -32,6 +32,9 @@ int main(void) {
   if (0 > LED_init()) {
     return 0;
   }
+
+  state_machine_init();
+  printk("State machine set and running\n");
   // if (!gpio_is_ready_dt(&led0))
   //   return -1;
   // if (!gpio_is_ready_dt(&led1))
