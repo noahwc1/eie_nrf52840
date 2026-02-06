@@ -1,5 +1,5 @@
-/*
- * main.c
+/**
+ * @file main.c
  */
 
 #include <inttypes.h>
@@ -71,22 +71,7 @@ static void lcd_cmd(uint8_t cmd, struct spi_buf * data) {
 
 int main(void) {
 
-  if (!device_is_ready(dev)) {
-    printk("Error: SPI device not ready\n");
-    return 0;
-  }
-
-  if (!gpio_is_ready_dt( &dcx_gpio)) {
-    printk("Error: DCX GPIO device not ready\n");
-    return 0;
-  }
-
-  if (gpio_pin_configure_dt( &dcx_gpio, GPIO_OUTPUT_LOW)) {
-    printk("Error: Failed to configure DCX GPIO pin\n");
-    return 0;
-  }
-
-  if (0> BTN_init()){
+  if (0 > BTN_init()) {
     return 0;
   }
 
@@ -121,9 +106,9 @@ int main(void) {
   lcd_cmd( CMD_ROW_ADDRESS_SET, &row_data_buf);
   lcd_cmd( CMD_MEMORY_WRITE,  &color_data_buf);
 
-  while(1) {
+  while (1) {
     k_msleep(SLEEP_MS);
   }
-	return 0;
+  return 0;
 }
 
