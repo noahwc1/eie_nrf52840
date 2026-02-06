@@ -8,6 +8,9 @@
     },
     {
       "path": "../../zephyr/include"
+    },
+    {
+      "path": "../../zephyr/modules/lvgl"
     }
   ]
 }
