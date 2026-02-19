@@ -114,9 +114,10 @@ struct led_state_object {
 
     if ((now - state_object.last_toggle_ms) >= 32) {
         state_object.last_toggle_ms = now;
-        state_object.led3_on = !state_object.led3_on;
+        state_object.led3_on =! state_object.led3_on;
     }
     int64_t now2 = k_uptime_get();
+    
     if ((now2 - state_object.button_time) >= 500) {
         state_object.button_time = now2;
         LED_set(LED0, LED_OFF);
