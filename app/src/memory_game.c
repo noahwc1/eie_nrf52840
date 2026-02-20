@@ -142,7 +142,6 @@ int i;
 
 
 int enter_sequence(int which_button, struct *player, int next_state);
-
 int enter_sequence(int which_button, struct *player, int next_state){
   if (player->player_sequence[player.sequence_index] == -1)
         player->player_sequence[player.sequence_index] = which_button;
