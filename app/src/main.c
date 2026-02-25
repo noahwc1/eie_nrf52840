@@ -81,9 +81,9 @@ int main(void) {
   }
 
   memory_game_init();
-
+  printk("Memory Game Initialized\n");
   while(1){
-    printk("state machine running");
+    
     int ret = memory_game_run();
     if(0 > ret){
       return 0;

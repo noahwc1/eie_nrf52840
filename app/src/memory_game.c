@@ -36,6 +36,9 @@ static enum smf_state_result player2_play_run(void* o);
 static void declare_winner_state(void* o);
 static enum smf_state_result declare_winner_run(void* o);
 
+static void show_sequence_state(void* o);
+static enum smf_state_result show_sequence_run(void* o);
+
 
 // Type definitions for game states
 enum memory_game_states {
@@ -45,6 +48,7 @@ enum memory_game_states {
   PLAYER1_PLAY,
   PLAYER2_PLAY,
   WINNER_STATE,
+  SHOW_SEQUENCE,
 };
 
 
@@ -60,7 +64,9 @@ typedef struct {
 
     int64_t button_time;
 
-    int64_t leds_status;
+    int leds_status;
+
+    int showing_seq_to_player;
 
 } state_object_t;
 
@@ -89,11 +95,15 @@ static const struct smf_state game_states[] = {
   NULL, NULL, NULL),
   
   // Gets player 2 to put in player 1's sequence
-  [PLAYER1_PLAY] = SMF_CREATE_STATE(player2_play_state, player2_play_run,
+  [PLAYER2_PLAY] = SMF_CREATE_STATE(player2_play_state, player2_play_run,
   NULL, NULL, NULL),
   
   // Declares the winner of the game
   [WINNER_STATE] = SMF_CREATE_STATE(declare_winner_state, declare_winner_run,
+  NULL, NULL, NULL),
+
+  // Show sequence of player x
+  [SHOW_SEQUENCE] = SMF_CREATE_STATE(show_sequence_state, show_sequence_run,
   NULL, NULL, NULL),
 };
 
@@ -158,7 +168,21 @@ int enter_sequence(int which_button, player *player, int next_state){
   return 0;
   }
 
+void all_leds_on();
+void all_leds_on(){
+  LED_set(LED0, LED_ON);
+  LED_set(LED1, LED_ON);
+  LED_set(LED2, LED_ON);
+  LED_set(LED3, LED_ON);
+}
 
+void all_leds_off();
+void all_leds_off(){
+  LED_set(LED0, LED_OFF);
+  LED_set(LED1, LED_OFF);
+  LED_set(LED2, LED_OFF);
+  LED_set(LED3, LED_OFF);
+}
 
 
 // Memory Game State functions, what happens in each state
@@ -166,7 +190,10 @@ int enter_sequence(int which_button, player *player, int next_state){
 
 // standby state
 static void standby_state(void* o){
+  all_leds_off();
+  printk("STANDBY STATE\n");
   state_object.round = 0;
+  sequence_length = 4;
   state_object.next_state = PLAYER1_ENTER;
 
   for(i = 0; i < 10; i++){
@@ -195,12 +222,12 @@ static enum smf_state_result standby_state_run(void* o){
 
 
   if ((now - state_object.last_toggle_ms) >= 500) {
-        state_object.button_time = now;
-        LED_set(LED0, state_object.leds_status ? LED_ON : LED_OFF);
-        LED_set(LED1, state_object.leds_status ? LED_ON : LED_OFF);
-        LED_set(LED2, state_object.leds_status ? LED_ON : LED_OFF);
-        LED_set(LED3, state_object.leds_status ? LED_ON : LED_OFF);
-        state_object.leds_status = (state_object.leds_status ? 0 : 1);
+        state_object.last_toggle_ms = now;
+        LED_set(LED0, state_object.leds_status ? LED_OFF : LED_ON);
+        LED_set(LED1, state_object.leds_status ? LED_OFF : LED_ON);
+        LED_set(LED2, state_object.leds_status ? LED_OFF : LED_ON);
+        LED_set(LED3, state_object.leds_status ? LED_OFF : LED_ON);
+        state_object.leds_status = !state_object.leds_status;
     }
 
   return SMF_EVENT_HANDLED;
@@ -209,21 +236,21 @@ static enum smf_state_result standby_state_run(void* o){
 
   // player 1 enter state
 static void player1_enter_state(void* o){
-  LED_set(LED1, LED_ON);
-  k_msleep(500);
-  LED_set(LED1, LED_OFF);
-  
-  if (state_object.round % 2 == 0) {
-    state_object.next_state = PLAYER2_ENTER;
+  all_leds_off();
+  if (state_object.round % 2 ==  1) {   // odd round, player 2 play next
+    state_object.next_state = SHOW_SEQUENCE;
     sequence_length++;
+    state_object.showing_seq_to_player = 2;
   }
   else {
-    state_object.next_state = PLAYER2_PLAY;
+    state_object.next_state = PLAYER2_ENTER;
     }
 
-  if ((pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0)|| (pointer_player1->errorflag == 0 && pointer_player2->errorflag == 1))
+  if ((pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0)|| (pointer_player1->errorflag == 0 && pointer_player2->errorflag == 1)){
+    printk("error flag detected, going to winner state\n");
     smf_set_state(SMF_CTX(&state_object), &game_states[WINNER_STATE]);
-
+  }
+  printk("PLAYER 1 ENTER STATE, enter %d characters\n", sequence_length);
   state_object.last_toggle_ms = k_uptime_get();
 }
 
@@ -248,25 +275,28 @@ static enum smf_state_result player1_enter_run(void* o){
   }
 
   if (error_flag == 1){
+    all_leds_on();
     pointer_player1->errorflag = 1;
-    for (i = 0; i < 4; i++){
-      LED_set(LED0, LED_ON);
-      k_msleep(250);
-      LED_set(LED0, LED_OFF);
-      k_msleep(250);
-    }
-  } 
+    printk("error flag set for player 1\n");
+    state_object.last_toggle_ms = k_uptime_get();
+    if(now - state_object.last_toggle_ms >= 500){
+      all_leds_off();
+      smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
+      }
+ }
   else if (pointer_player1->sequence_index == sequence_length){
     smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
     pointer_player1->sequence_index = 0;
   }
 
-  if ((now - state_object.last_toggle_ms) >= 500) {
-    state_object.last_toggle_ms = now;
-    LED_set(LED0, LED_OFF);
-    LED_set(LED1, LED_OFF);
-    LED_set(LED2, LED_OFF);
-    LED_set(LED3, LED_OFF);
+  if (!error_flag){
+    if ((now - state_object.last_toggle_ms) >= 500) {
+      state_object.last_toggle_ms = now;
+      all_leds_off();
+    }
+    if ((now - state_object.last_toggle_ms) >= 250) {
+      LED_set(LED0, LED_ON);
+    }
   }
   return SMF_EVENT_HANDLED;
   }
@@ -274,23 +304,23 @@ static enum smf_state_result player1_enter_run(void* o){
 
   // Player 2 enter state
 static void player2_enter_state(void* o){
-  LED_set(LED2, LED_ON);
-  k_msleep(500);
-  LED_set(LED2, LED_OFF);
+  all_leds_off();
+  if (state_object.round % 2 == 1 ){   // odd round, player 1 enter next
+    state_object.next_state =PLAYER1_ENTER ;
+    sequence_length++;
 
-
-  if (state_object.round % 2 == 0){
-    state_object.next_state = PLAYER1_PLAY;
-    
   }
   else {
-    state_object.next_state = PLAYER1_ENTER;
-    sequence_length++;
+    state_object.next_state = SHOW_SEQUENCE;
+    state_object.showing_seq_to_player = 1;
+    
   }
-  if ((pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0)|| (pointer_player1->errorflag == 0 && pointer_player2->errorflag == 1))
-    smf_set_state(SMF_CTX(&state_object), &game_states[WINNER_STATE]);
+  if ((pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0)|| (pointer_player1->errorflag == 0 && pointer_player2->errorflag == 1)){
+      printk("error flag detected, going to winner state\n");
+      smf_set_state(SMF_CTX(&state_object), &game_states[WINNER_STATE]);
+  }
  
-  
+  printk("PLAYER 2 ENTER STATE, enter %d characters\n", sequence_length);
 }
 
 static enum smf_state_result player2_enter_run(void* o){
@@ -315,54 +345,51 @@ static enum smf_state_result player2_enter_run(void* o){
   }
 
   if (error_flag == 1){
-    pointer_player2->errorflag = 1;
-    for (i = 0; i < 4; i++){
-      LED_set(LED0, LED_ON);
-      k_msleep(250);
-      LED_set(LED0, LED_OFF);
-      k_msleep(250);
-    }
-  }
+      all_leds_on();
+      pointer_player2->errorflag = 1;
+      printk("error flag set for player 2\n");
+      state_object.last_toggle_ms = k_uptime_get();
+      if(now - state_object.last_toggle_ms >= 500){
+        all_leds_off();
+        smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
+        }
+      }
   else if (pointer_player2->sequence_index == sequence_length){
     smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
     pointer_player2->sequence_index = 0;
   }
-  if ((now - state_object.last_toggle_ms) >= 500) {
-      state_object.last_toggle_ms = now;
-      LED_set(LED0, LED_OFF);
-      LED_set(LED1, LED_OFF);
-      LED_set(LED2, LED_OFF);
-      LED_set(LED3, LED_OFF);
+  if (!error_flag){
+    if ((now - state_object.last_toggle_ms) >= 500) {
+        state_object.last_toggle_ms = now;
+        all_leds_off();
+      }
+    if ((now - state_object.last_toggle_ms) >= 250) {
+      LED_set(LED1, LED_ON);
     }
-
+  }
   return SMF_EVENT_HANDLED;
   }
 
 
   // player 1 play
 static void player1_play_state(void* o){
-  LED_set(LED1, LED_ON);
-  k_msleep(500);
-  LED_set(LED1, LED_OFF);
-
-  if (state_object.round % 2 == 0){
-    state_object.next_state = PLAYER2_PLAY;
-  }
-  else {
+  all_leds_off();
+  if (state_object.round % 2 == 1){  // odd round, player1 enter next
     state_object.next_state = PLAYER1_ENTER;
     state_object.round++;
   }
-    
-  if ((pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0)|| (pointer_player1->errorflag == 0 && pointer_player2->errorflag == 1))
-    smf_set_state(SMF_CTX(&state_object), &game_states[WINNER_STATE]);
-
-  for (int i = 0; i < sequence_length; i++){
-     enum led_id_t led = (led_id)pointer_player2->player_sequence[i];
-      LED_set(led, LED_ON);
-      k_msleep(SLEEP_TIME_MS);
-      LED_set(led, LED_OFF);
+  else {
+    state_object.next_state = SHOW_SEQUENCE;
+    state_object.showing_seq_to_player = 2;  // even round, show sequence to player 2
+        
   }
-  
+    
+  if ((pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0)|| (pointer_player1->errorflag == 0 && pointer_player2->errorflag == 1)){
+      printk("error flag detected, going to winner state\n");
+      smf_set_state(SMF_CTX(&state_object), &game_states[WINNER_STATE]);
+  }
+
+  printk("PLAYER 1 PLAY STATE, enter player 2's sequence: %d length, round: %d\n", sequence_length, state_object.round);
 }
 
 static enum smf_state_result player1_play_run(void* o){
@@ -387,56 +414,52 @@ static enum smf_state_result player1_play_run(void* o){
   }
 
   if (error_flag == 1){
-    pointer_player1->errorflag = 1;
-    for (i = 0; i < 4; i++){
-      LED_set(LED0, LED_ON);
-      k_msleep(250);
-      LED_set(LED0, LED_OFF);
-      k_msleep(250);
-    }
-  }
+      all_leds_on();
+      pointer_player1->errorflag = 1;
+      printk("error flag set for player 1\n");
+      state_object.last_toggle_ms = k_uptime_get();
+      if(now - state_object.last_toggle_ms >= 500){
+        all_leds_off();
+        smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
+        }
+      }
   else if (pointer_player2->sequence_index == sequence_length){
     smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
     pointer_player2->sequence_index = 0;
   }
 
-  if ((now - state_object.last_toggle_ms) >= 500) {
-    state_object.last_toggle_ms = now;
-    LED_set(LED0, LED_OFF);
-    LED_set(LED1, LED_OFF);
-    LED_set(LED2, LED_OFF);
-    LED_set(LED3, LED_OFF);
+  if (!error_flag){
+    if ((now - state_object.last_toggle_ms) >= 500) {
+      state_object.last_toggle_ms = now;
+      all_leds_off();
+    }
+    if ((now - state_object.last_toggle_ms) >= 250) {
+      LED_set(LED0, LED_ON);
+    }
   }
   return SMF_EVENT_HANDLED;
 }
 
 
-
 //  player 2 play
 
 static void player2_play_state(void* o){
-  LED_set(LED2, LED_ON);
-  k_msleep(500);
-  LED_set(LED2, LED_OFF);
-
-  if (state_object.round % 2 == 1){
-    state_object.next_state = PLAYER1_PLAY;
+  all_leds_off();
+  if (state_object.round % 2 == 1){  // odd round, player 1 plays
+    state_object.next_state = SHOW_SEQUENCE;
+    state_object.showing_seq_to_player = 1;
   }
   else {
     state_object.next_state = PLAYER2_ENTER;
     state_object.round++;
   }
     
-  if ((pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0)|| (pointer_player1->errorflag == 0 && pointer_player2->errorflag == 1))
-    smf_set_state(SMF_CTX(&state_object), &game_states[WINNER_STATE]);
-  
-  for (int i = 0; i < sequence_length; i++){
-    enum led_id_t led = (led_id)pointer_player2->player_sequence[i];
-    LED_set(led, LED_ON);
-    k_msleep(SLEEP_TIME_MS);
-    LED_set(led, LED_OFF);
+  if ((pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0)|| (pointer_player1->errorflag == 0 && pointer_player2->errorflag == 1)){
+      printk("error flag detected, going to winner state\n");
+      smf_set_state(SMF_CTX(&state_object), &game_states[WINNER_STATE]);
   }
-  
+
+  printk("PLAYER 2 PLAY STATE, enter player 1's sequence: %d length\n", sequence_length);
 
 }
 
@@ -460,49 +483,121 @@ static enum smf_state_result player2_play_run(void* o){
     LED_set(LED3, LED_ON);
   }
 
-  if (error_flag == 1){
+if (error_flag == 1){
+    all_leds_on();
     pointer_player2->errorflag = 1;
-    for (i = 0; i < 4; i++){
-      LED_set(LED0, LED_ON);
-      k_msleep(250);
-      LED_set(LED0, LED_OFF);
-      k_msleep(250);
+    printk("error flag set for player 2\n");
+    state_object.last_toggle_ms = k_uptime_get();
+    if(now - state_object.last_toggle_ms >= 500){
+      all_leds_off();
+      smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
+      }
     }
-  }
   else if (pointer_player1->sequence_index == sequence_length){
     smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
     pointer_player1->sequence_index = 0;
   }
 
-  if ((now - state_object.last_toggle_ms) >= 500) {
-    state_object.last_toggle_ms = now;
-    LED_set(LED0, LED_OFF);
-    LED_set(LED1, LED_OFF);
-    LED_set(LED2, LED_OFF);
-    LED_set(LED3, LED_OFF);
+  if(!error_flag){
+    if ((now - state_object.last_toggle_ms) >= 500) {
+      state_object.last_toggle_ms = now;
+      all_leds_off();
+    }
+    if ((now - state_object.last_toggle_ms) >= 250) {
+      LED_set(LED1, LED_ON);
+    }
   }
   return SMF_EVENT_HANDLED;
   }
-
 
 
 // Winner state
 static void declare_winner_state(void* o) {
+all_leds_off();
+printk("Delcare Winner State\n");
 
+state_object.last_toggle_ms = k_uptime_get();
 }
- 
 
 static enum smf_state_result declare_winner_run(void* o){
-  if (pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0){
+
+  int64_t now = k_uptime_get();
+
+  if ((now - state_object.last_toggle_ms) < 50) {
+    if (pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0){
     printk("PLAYER 2 IS WINNER!!!\n");
-    LED_set(LED2, LED_ON);
-    k_msleep(3*SLEEP_TIME_MS);
-  }
-  else{
-    printk("PLAYER 1 IS WINNER!!!\n");
     LED_set(LED1, LED_ON);
-    k_msleep(3*SLEEP_TIME_MS);
+    }
+    else {
+      printk("PLAYER 1 IS WINNER!!!\n");
+      LED_set(LED0, LED_ON);
+    }
   }
-  smf_set_state(SMF_CTX(&state_object), &game_states[STANDBY_STATE]);
+  else if ((now - state_object.last_toggle_ms) >= 2000) {
+    LED_set(LED0, LED_OFF);
+    LED_set(LED1, LED_OFF);
+    LED_set(LED2, LED_OFF);
+    LED_set(LED3, LED_OFF);
+    smf_set_state(SMF_CTX(&state_object), &game_states[STANDBY_STATE]);
+  }
+
   return SMF_EVENT_HANDLED;
+}
+
+
+// Show sequence state
+
+static void show_sequence_state(void* o) {
+  all_leds_off();
+  printk("Show Sequence State\n");
+
+  if (state_object.showing_seq_to_player == 1){  
+    state_object.next_state = PLAYER1_PLAY;
+  }
+  else {
+    state_object.next_state = PLAYER2_PLAY;
+
+  }
+  state_object.last_toggle_ms = k_uptime_get();
+
+}
+
+static enum smf_state_result show_sequence_run(void* o){
+
+  int64_t now = k_uptime_get();
+  
+  player *player_to_show;
+  if (state_object.showing_seq_to_player == 1){
+    player_to_show = pointer_player2;
+  }
+  else {
+    player_to_show = pointer_player1;
+
+  }
+
+  if (player_to_show->sequence_index >= sequence_length) {
+    player_to_show->sequence_index = 0;
+    printk("Done showing sequence\n");
+    smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
+    printk("test for exit\n");
+    // sequence done
+  }
+  else if ((now - state_object.last_toggle_ms) >= 1000) {
+      state_object.last_toggle_ms = now;
+
+      enum led_id_t led =
+          (led_id)player_to_show->player_sequence[player_to_show->sequence_index];
+     
+          if (!state_object.leds_status) {
+          LED_set(led, LED_ON);
+          state_object.leds_status= 1;
+      } 
+      else {
+          LED_set(led, LED_OFF);
+          state_object.leds_status = 0;
+          player_to_show->sequence_index++;
+      }
+    }
+
+    return SMF_EVENT_HANDLED;
 }
