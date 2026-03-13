@@ -13,24 +13,23 @@
 #include "BTN.h"
 #include "LED.h"
 
-#include <lvgl.h>
-#include "lv_data_obj.h"
+// #include <lvgl.h>
+// #include "lv_data_obj.h"
 #include <zephyr/drivers/display.h>
+
+#include <lvgl.h>
+#include "lcd_ui.h"
 
 #include "memory_game.h"
 
 #define SLEEP_MS 1
 
-static const struct device *display_dev = DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
-static lv_obj_t *screen = NULL;
 
-void lv_button_callback(lv_event_t *event);
-void lv_button_callback(lv_event_t *event){
-  lv_obj_t *data_obj = (lv_obj_t *)lv_event_get_user_data(event);
-  led_id led = *(led_id *)lv_data_obj_get_data_ptr(data_obj);
+static const struct device *display_dev =
+    DEVICE_DT_GET(DT_CHOSEN(zephyr_display));
 
-  LED_toggle(led);
-}
+
+
 
 // command to build for screen:
 //west build -b nrf52840dk/nrf52840 --shield=adafruit_2_8_tft_touch_v2 app
@@ -102,28 +101,28 @@ int main(void) {
     return 0;
   }
 
-  screen = lv_screen_active();
-  if (screen == NULL) {
-    return 0;
-  }
+  // screen = lv_screen_active();
+  // if (screen == NULL) {
+  //   return 0;
+  // }
+  
+  // for (uint8_t i = 0; i < NUM_LEDS; i++) {
+  //   lv_obj_t *ui_btn = lv_button_create(screen);
+  //   lv_obj_align(ui_btn, LV_ALIGN_CENTER, 70 * (i % 2 ? 1 : -1), 30 * (i < 2 ? -1 : 1));
+  //   lv_obj_t *button_label = lv_label_create(ui_btn);
+  //   char label_text[10];
+  //   snprintf(label_text, 10, "LED %d", i);
+  //   lv_label_set_text(button_label, label_text);
+  //   lv_obj_align(button_label, LV_ALIGN_CENTER, 0, 0);
 
+  //   led_id led = (led_id)i;
+  //   lv_obj_t *data_obj = lv_data_obj_create_alloc_assign(ui_btn, &led, sizeof(led_id));
+  //   lv_obj_add_event_cb(ui_btn, lv_button_callback, LV_EVENT_CLICKED, data_obj);
+  // }
 
-  for (uint8_t i = 0; i < NUM_LEDS; i++) {
-    lv_obj_t *ui_btn = lv_button_create(screen);
-    lv_obj_align(ui_btn, LV_ALIGN_CENTER, 70 * (i % 2 ? 1 : -1), 30 * (i < 2 ? -1 : 1));
-    lv_obj_t *button_label = lv_label_create(ui_btn);
-    char label_text[10];
-    snprintf(label_text, 10, "LED %d", i);
-    lv_label_set_text(button_label, label_text);
-    lv_obj_align(button_label, LV_ALIGN_CENTER, 0, 0);
-
-    led_id led = (led_id)i;
-    lv_obj_t *data_obj = lv_data_obj_create_alloc_assign(ui_btn, &led, sizeof(led_id));
-    lv_obj_add_event_cb(ui_btn, lv_button_callback, LV_EVENT_CLICKED, data_obj);
-  }
-
+  
   display_blanking_off(display_dev);
-
+  lcd_ui_init();
 
   memory_game_init();
   printk("Memory Game Initialized\n");
