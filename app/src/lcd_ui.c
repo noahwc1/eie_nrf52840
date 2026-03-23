@@ -27,16 +27,21 @@ void lv_button_callback(lv_event_t *event)
 void lcd_ui_init(void)
 {
     screen = lv_screen_active();
-
+    
     if (screen == NULL) {
         return;
     }
+
+    status_label = lv_label_create(screen);
+
+    
+
      for (uint8_t i = 0; i < NUM_LEDS; i++) {
 
         led_regions[i] = lv_obj_create(screen);
 
-        lv_obj_set_size(led_regions[i], 220, 150);
-
+        lv_obj_set_size(led_regions[i], 120, 80);   // 220 150
+ 
         lv_obj_align(led_regions[i],
                      LV_ALIGN_CENTER,
                      120 * (i % 2 ? 1 : -1),
@@ -45,8 +50,14 @@ void lcd_ui_init(void)
         lv_obj_set_style_bg_color(led_regions[i],
                                   lv_color_hex(0x303030),
                                   0);
+        
     }
-    
+
+    lv_label_set_text(status_label, "Memory Game");
+    lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 10);
+    lv_obj_set_style_text_color(status_label, lv_color_hex(0x000000), 0);
+    lv_obj_set_style_text_font(status_label, &lv_font_montserrat_14, 0);
+
     // for (uint8_t i = 0; i < NUM_LEDS; i++) {
 
     //     lv_obj_t *ui_btn = lv_button_create(screen);
@@ -74,6 +85,7 @@ void lcd_ui_init(void)
     //                         LV_EVENT_CLICKED,
     //                         data_obj);
     // }
+    lv_obj_move_foreground(status_label);
 }
 
 void lcd_set_led(led_id led, int on)
@@ -91,9 +103,18 @@ void lcd_set_led(led_id led, int on)
             lv_color_hex(0x303030),
             0);
     }
+    lv_obj_move_foreground(status_label);
 }
 
 void lcd_set_status(const char *text)
 {
+    if (!status_label) return;
+
     lv_label_set_text(status_label, text);
+
+    lv_obj_align(status_label, LV_ALIGN_CENTER, 0, 0);
+    
+    lv_obj_move_foreground(status_label);
+   
+
 }
