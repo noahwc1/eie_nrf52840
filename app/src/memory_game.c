@@ -165,6 +165,8 @@ player player2 = {{-1, -1, -1, -1, -1, -1, -1, -1, -1, -1}, 0, 0};
 player *pointer_player1 = &player1;
 player *pointer_player2 = &player2;
 
+player *player_seq_to_show;
+
 
 
 int sequence_length = 4;
@@ -187,6 +189,25 @@ int enter_sequence(int which_button, player *player, int next_state){
   player->sequence_index++;
   return 0;
   }
+
+
+static int lcd_button_pressed[NUM_LEDS] = {0};
+
+void memory_game_set_lcd_button(led_id led);
+void memory_game_set_lcd_button(led_id led){
+  if (led < NUM_LEDS) {
+    lcd_button_pressed[led] = 1;
+  }
+}
+
+int check_button(int btn);
+int check_button(int btn){
+  if (BTN_check_clear_pressed(btn) || lcd_button_pressed[btn]){
+    lcd_button_pressed[btn] = 0;
+    return 1;
+  }
+  return 0;
+}
 
 void all_leds_on();
 void all_leds_on(){
@@ -231,12 +252,16 @@ void btns_clear(){
   }
 }
 
+
+
 // Memory Game State functions, what happens in each state
 
 
 // standby state
 static void standby_state(void* o){
   all_leds_off();
+  state_object.leds_status = 0;
+
   printk("STANDBY STATE\n");
   lcd_set_status("Memory Game - Press BUTTON1 to Start");
 
@@ -267,7 +292,7 @@ static enum smf_state_result standby_state_run(void* o){
   int64_t now = k_uptime_get();
   
   // If BTN 0 is pressed go into player 1 enter
-  if (BTN_check_clear_pressed(BTN0)){
+  if (check_button(0)){
     smf_set_state(SMF_CTX(&state_object), &game_states[PLAYER1_STANDBY]);
   }
 
@@ -325,27 +350,27 @@ static enum smf_state_result player1_enter_run(void* o){
   int64_t now = k_uptime_get();
 
   // only accept button presses if total sequence length has not been reached yet
-  if (pointer_player1->sequence_index < sequence_length){
+  if (pointer_player1->sequence_index < sequence_length && error_flag == 0){
 
-    if (BTN_check_clear_pressed(BTN0)){
+    if (check_button(0)){
       error_flag = enter_sequence(0, pointer_player1, state_object.next_state);
       LED_set(LED0, LED_ON);
       lcd_set_led(LED0, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN1) ){
+    else if (check_button(1)){
       error_flag = enter_sequence(1, pointer_player1, state_object.next_state);
       LED_set(LED1, LED_ON);
       lcd_set_led(LED1, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN2) ){
+    else if (check_button(2)){
       error_flag = enter_sequence(2, pointer_player1, state_object.next_state);
       LED_set(LED2, LED_ON);
       lcd_set_led(LED2, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN3) ){
+    else if (check_button(3) ){
       error_flag = enter_sequence(3, pointer_player1, state_object.next_state);
       LED_set(LED3, LED_ON);
       lcd_set_led(LED3, 1);
@@ -361,7 +386,7 @@ static enum smf_state_result player1_enter_run(void* o){
     printk("error flag set for player 1\n");
     if (now - state_object.last_toggle_ms >= 1500){
       all_leds_off();
-      smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
+      smf_set_state(SMF_CTX(&state_object), &game_states[PLAYER2_STANDBY]);
       // if (pointer_player1->errorflag == 1 && pointer_player2->errorflag == 1){
       //   smf_set_state(SMF_CTX(&state_object), &game_states[PLAYER2_STANDBY]);
       //   state_object.next_state = SHOW_SEQUENCE;
@@ -448,26 +473,26 @@ static enum smf_state_result player2_enter_run(void* o){
   int64_t now = k_uptime_get();
   
   // only accept button presses if total sequence length has not been reached yet
-  if (pointer_player2->sequence_index < sequence_length){
-    if (BTN_check_clear_pressed(BTN0)){
+  if (pointer_player2->sequence_index < sequence_length && error_flag == 0){
+    if (check_button(0)){
       error_flag = enter_sequence(0, pointer_player2, state_object.next_state);
       LED_set(LED0, LED_ON);
       lcd_set_led(LED0, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN1) ){
+    else if (check_button(1) ){
       error_flag = enter_sequence(1, pointer_player2, state_object.next_state);
       LED_set(LED1, LED_ON);
       lcd_set_led(LED1, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN2) ){
+    else if (check_button(2) ){
       error_flag = enter_sequence(2, pointer_player2, state_object.next_state);
       LED_set(LED2, LED_ON);
       lcd_set_led(LED2, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN3) ){
+    else if (check_button(3) ){
       error_flag = enter_sequence(3, pointer_player2, state_object.next_state);
       LED_set(LED3, LED_ON);
       lcd_set_led(LED3, 1);
@@ -563,26 +588,26 @@ static enum smf_state_result player1_play_run(void* o){
   int64_t now = k_uptime_get();
   
   // only accept button presses if total sequence length has not been reached yet
-  if (pointer_player2->sequence_index < sequence_length){
-    if (BTN_check_clear_pressed(BTN0)){
+  if (pointer_player2->sequence_index < sequence_length && error_flag == 0){
+    if (check_button(0)){
       error_flag = enter_sequence(0, pointer_player2, state_object.next_state);
       LED_set(LED0, LED_ON);
       lcd_set_led(LED0, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN1) ){
+    else if (check_button(1)){
       error_flag = enter_sequence(1, pointer_player2, state_object.next_state);
       LED_set(LED1, LED_ON);
       lcd_set_led(LED1, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN2) ){
+    else if (check_button(2) ){
       error_flag = enter_sequence(2, pointer_player2, state_object.next_state);
       LED_set(LED2, LED_ON);
       lcd_set_led(LED2, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN3) ){
+    else if (check_button(3) ){
       error_flag = enter_sequence(3, pointer_player2, state_object.next_state);
       LED_set(LED3, LED_ON);
       lcd_set_led(LED3, 1);
@@ -598,7 +623,7 @@ static enum smf_state_result player1_play_run(void* o){
       printk("error flag set for player 1\n");
       if(now - state_object.last_toggle_ms >= 1500){
         all_leds_off();
-        smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
+        smf_set_state(SMF_CTX(&state_object), &game_states[PLAYER2_STANDBY]);
         // if (pointer_player1->errorflag == 1 && pointer_player2->errorflag == 1){
         //     smf_set_state(SMF_CTX(&state_object), &game_states[PLAYER2_STANDBY]);
         //     state_object.next_state = PLAYER2_ENTER;
@@ -672,26 +697,26 @@ static enum smf_state_result player2_play_run(void* o){
   int64_t now = k_uptime_get();
 
   // only accept button presses if total sequence length has not been reached yet
-  if (pointer_player2->sequence_index < sequence_length){
-    if (BTN_check_clear_pressed(BTN0)){
+  if (pointer_player2->sequence_index < sequence_length && error_flag == 0){
+    if (check_button(0)){
       error_flag = enter_sequence(0, pointer_player1, state_object.next_state);
       LED_set(LED0, LED_ON);
       lcd_set_led(LED0, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN1) ){
+    else if (check_button(1) ){
       error_flag = enter_sequence(1, pointer_player1, state_object.next_state);
       LED_set(LED1, LED_ON);
       lcd_set_led(LED1, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN2) ){
+    else if (check_button(2) ){
       error_flag = enter_sequence(2, pointer_player1, state_object.next_state);
       LED_set(LED2, LED_ON);
       lcd_set_led(LED2, 1);
       state_object.last_toggle_ms = now;
     }
-    else if (BTN_check_clear_pressed(BTN3) ){
+    else if (check_button(3) ){
       error_flag = enter_sequence(3, pointer_player1, state_object.next_state);
       LED_set(LED3, LED_ON);
       lcd_set_led(LED3, 1);
@@ -758,6 +783,7 @@ return SMF_EVENT_HANDLED;
 
 // Winner state
 static void declare_winner_state(void* o) {
+    
     all_leds_off();
     printk("Delcare Winner State\n");
     lcd_set_status("We have a Winner...");
@@ -773,6 +799,7 @@ static enum smf_state_result declare_winner_run(void* o){
   if ((now - state_object.last_toggle_ms) > 2000 && state_object.leds_status == 0) {
     state_object.last_toggle_ms = now;
     state_object.leds_status = 1;
+    lcd_green_led();
 
     if (pointer_player1->errorflag == 1 && pointer_player2->errorflag == 0){
       printk("PLAYER 2 IS WINNER!!!\n");
@@ -804,10 +831,13 @@ static void show_sequence_state(void* o) {
 
   if (state_object.showing_seq_to_player == 1){  
     state_object.next_state = PLAYER1_PLAY;
+    pointer_player2->sequence_index = 0;
+    player_seq_to_show = pointer_player2;
   }
   else {
     state_object.next_state = PLAYER2_PLAY;
-
+    pointer_player1->sequence_index = 0;
+    player_seq_to_show = pointer_player1;
   }
   state_object.last_toggle_ms = k_uptime_get();
   state_object.leds_status = 0;
@@ -817,22 +847,21 @@ static enum smf_state_result show_sequence_run(void* o){
 
   int64_t now = k_uptime_get();
   
-  player *player_to_show;
-  if (state_object.showing_seq_to_player == 1){
-    player_to_show = pointer_player2;
-  }
-  else {
-    player_to_show = pointer_player1;
+  // player *player_to_show;
+  // if (state_object.showing_seq_to_player == 1){
+  //   player_to_show = pointer_player2;
+  // }
+  // else {
+  //   player_to_show = pointer_player1
+  // }
 
-  }
-
-  if (player_to_show->sequence_index == 0 && (now - state_object.last_toggle_ms) > 1000){  // extra delay for first one
+  if (player_seq_to_show->sequence_index == 0 && (now - state_object.last_toggle_ms) > 1000) {  // extra delay for first one
     state_object.last_toggle_ms = now;
-    show_leds(player_to_show);
+    show_leds(player_seq_to_show);
   }
-  else {
-    if (player_to_show->sequence_index >= sequence_length) {
-      player_to_show->sequence_index = 0;
+  else if (player_seq_to_show->sequence_index > 0){
+    if (player_seq_to_show->sequence_index >= sequence_length) {
+      player_seq_to_show->sequence_index = 0;
       printk("Done showing sequence\n");
       smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
       printk("test for exit\n");
@@ -840,7 +869,7 @@ static enum smf_state_result show_sequence_run(void* o){
   }
     else if ((now - state_object.last_toggle_ms) > 500) {
         state_object.last_toggle_ms = now;
-        show_leds(player_to_show);
+        show_leds(player_seq_to_show);
     }
   }
   return SMF_EVENT_HANDLED;
@@ -854,22 +883,24 @@ static void player1_standby_state(void* o){
   printk("PLAYER 1 STANDBY STATE\n");
   lcd_set_status("PLAYER 1 Standby - Press BUTTON1 \nto Start Turn");
   btns_clear();
+  pointer_player1->sequence_index = 0;
+  state_object.leds_status = 0;
 }
 
 static enum smf_state_result player1_standby_run(void* o){
   int64_t now = k_uptime_get();
 
-  if (BTN_check_clear_pressed(BTN0)){
+  if (check_button(0)){
     smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
   }
 
   if ((now - state_object.last_toggle_ms) > 500) {
         state_object.last_toggle_ms = now;
         LED_toggle(0);
-        lcd_set_led(0, (state_object.leds_status ? 1 : 0));
+        lcd_set_led(0, (state_object.leds_status ? 0 : 1));
         state_object.leds_status = !state_object.leds_status;
     }
-
+  
   return SMF_EVENT_HANDLED;
 }
 
@@ -880,21 +911,24 @@ static void player2_standby_state(void* o){
   printk("PLAYER 2 STANDBY STATE\n");
   lcd_set_status("PLAYER 2 Standby - Press BUTTON2 \nto Start Turn");
   btns_clear();
+  pointer_player2->sequence_index = 0;
+  state_object.leds_status = 0;
 }
 
 static enum smf_state_result player2_standby_run(void* o){
   int64_t now = k_uptime_get();
 
-  if (BTN_check_clear_pressed(BTN1)){
+  if (check_button(1)){
     smf_set_state(SMF_CTX(&state_object), &game_states[state_object.next_state]);
   }
 
   if ((now - state_object.last_toggle_ms) > 500) {
         state_object.last_toggle_ms = now;
         LED_toggle(1);
-        lcd_set_led(1, (state_object.leds_status ? 1 : 0));
+        lcd_set_led(1, (state_object.leds_status ? 0 : 1));
         state_object.leds_status = !state_object.leds_status;
     }
 
+  
   return SMF_EVENT_HANDLED;
 }

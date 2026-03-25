@@ -2,11 +2,13 @@
  * @file lcd_ui.c
  */
 
+
  
 #include <lvgl.h>
 #include "lcd_ui.h"
 #include "lv_data_obj.h"
 
+#include "memory_game.h"
 
 static lv_obj_t *status_label;
 
@@ -21,7 +23,7 @@ void lv_button_callback(lv_event_t *event)
     lv_obj_t *data_obj = (lv_obj_t *) lv_event_get_user_data(event);
     led_id led = *(led_id *)lv_data_obj_get_data_ptr(data_obj);
 
-    LED_toggle(led);
+    memory_game_set_lcd_button(led);
 }
 
 void lcd_ui_init(void)
@@ -50,6 +52,10 @@ void lcd_ui_init(void)
         lv_obj_set_style_bg_color(led_regions[i],
                                   lv_color_hex(0x303030),
                                   0);
+        
+        led_id led = (led_id)i;                          
+        lv_obj_t *data_obj = lv_data_obj_create_alloc_assign(led_regions[i], &led, sizeof(led_id));
+        lv_obj_add_event_cb(led_regions[i], lv_button_callback, LV_EVENT_CLICKED, data_obj);
         
     }
 
@@ -104,6 +110,16 @@ void lcd_set_led(led_id led, int on)
             0);
     }
     lv_obj_move_foreground(status_label);
+}
+
+void lcd_green_led(){
+        for(int i = 0; i < NUM_LEDS; i++){
+            lv_obj_set_style_bg_color(
+                led_regions[i],
+                lv_color_hex(0x00FF00),
+                0);
+        }
+        lv_obj_move_foreground(status_label);
 }
 
 void lcd_set_status(const char *text)
