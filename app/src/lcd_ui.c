@@ -77,15 +77,35 @@ void lv_button_callback(lv_event_t *event)
 }
 
 // Function to set the state of an LED on the LCD
-void lcd_set_led(led_id led, int on)
+void lcd_set_led(led_id led, int on, enum led_colours colour)
 {
     if (led >= NUM_LEDS) return;
 
     if (on) {
-        lv_obj_set_style_bg_color(
+        if (colour == RED) {
+            lv_obj_set_style_bg_color(
+                led_regions[led],
+                lv_color_hex(0xFF0000),
+                0);
+        }
+        else if (colour == GREEN) {
+            lv_obj_set_style_bg_color(
             led_regions[led],
-            lv_color_hex(0xFF0000),
+            lv_color_hex(0x00FF00),
             0);
+        }
+        else if (colour == BLUE) {
+            lv_obj_set_style_bg_color(
+            led_regions[led],
+            lv_color_hex(0x0000FF),
+            0);
+        }
+        else { // ORANGE
+            lv_obj_set_style_bg_color(
+            led_regions[led],
+            lv_color_hex(0xCC5500),
+            0);
+        }
     } else {
         lv_obj_set_style_bg_color(
             led_regions[led],
